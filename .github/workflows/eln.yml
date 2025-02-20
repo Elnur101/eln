@@ -1,36 +1,23 @@
-name: Deploy via SSH (without Docker)
+name: Deploy Laravel via FTP
 
 on:
   push:
     branches:
-      - main
+      - main  # Или другая ветка, с которой деплоишь
 
 jobs:
   deploy:
     runs-on: ubuntu-latest
-
     steps:
-      - name: Checkout repository
+      - name: Checkout repo
         uses: actions/checkout@v4
 
-      - name: Setup SSH key
-        run: |
-          mkdir -p ~/.ssh
-          echo "${{ secrets.SERVER_SSH_KEY }}" > ~/.ssh/id_rsa
-          chmod 600 ~/.ssh/id_rsa
-          ssh-keyscan -H ${{ secrets.SERVER_HOST }} >> ~/.ssh/known_hosts
+      - name: Deploy via FTP
+        uses: SamKirkland/FTP-Deploy-Action@v4
+        with:
+          server: ${{ secrets.FTP_HOST }}
+          username: ${{ secrets.FTP_USERNAME }}
+          password: ${{ secrets.FTP_PASSWORD }}
+          local-dir: ./
+          server-dir: /var/www/laravel_project/ # Укажи свой путь
 
-      - name: Deploy to Server via SSH
-        run: |
-          ssh -i ~/.ssh/id_rsa ${{ secrets.SERVER_USER }}@${{ secrets.SERVER_HOST }} << 'EOF'
-            cd /var/www/laravel_project
-            git pull origin main
-            composer install --no-dev --prefer-dist --no-progress
-            php artisan migrate --force
-            php artisan config:cache
-            php artisan route:cache
-            php artisan view:cache
-            chown -R www-data:www-data storage bootstrap/cache
-            systemctl restart php8.3-fpm
-            systemctl restart nginx
-          EOF
