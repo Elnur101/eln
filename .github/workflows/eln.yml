@@ -17,4 +17,4 @@ jobs:
         with:
           server: 62.72.23.250
           username: elnur
-          password: ${{ secrets.ftp_password }}
+          password: ${{ secrets.FTP_PASSWORD }}
