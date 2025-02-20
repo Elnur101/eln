@@ -13,7 +13,7 @@ jobs:
         uses: actions/checkout@v4
 
       - name: 📂 Sync files
-        uses: ./
+        uses: elnur101/eln@v1
         with:
           server: 62.72.23.250
           username: elnur
