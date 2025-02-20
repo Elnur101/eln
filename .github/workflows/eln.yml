@@ -1,19 +1,31 @@
-name: Eln
+name: Laravel CD
 
-on: push
+on:
+  push:
+    branches:
+      - main
 
 jobs:
- super-lint:
-   name: Lint code base
-   runs-on: ubuntu-latest
-   steps:
-     -name: Checkout code
-      uses: actions/checkout@v2
+  deploy:
+    runs-on: ubuntu-latest
 
-     -name: Run Super-Linter
-      uses: github/super-linter@v3
-      env:
-        DEFAULT_BRANCH: main
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+    steps:
+      - name: 🚀 Подключение к серверу и деплой
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.SERVER_HOST }}
+          username: ${{ secrets.SERVER_USER }}
+          key: ${{ secrets.SERVER_SSH_KEY }}
+          script: |
+            cd /var/www/html/shop
+            git pull origin main
+            composer install --no-dev --prefer-dist --no-progress
+            php artisan migrate --force
+            php artisan config:cache
+            php artisan route:cache
+            php artisan view:cache
+            chown -R www-data:www-data storage bootstrap/cache
+            systemctl restart php8.3-fpm
+            systemctl restart nginx
 
      
