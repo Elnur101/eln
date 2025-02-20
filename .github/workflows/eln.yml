@@ -1,6 +1,6 @@
 name: Eln
 
-on:push
+on: push
 
 jobs:
  super-lint:
