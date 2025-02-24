@@ -1,42 +1,53 @@
-name: Deploy to Ubuntu 22.04
+name: Deploy Laravel to Ubuntu 22.04
 
 on:
   push:
     branches:
-      - main  # Развертывание запускается при пуше в ветку main
+      - main  # Развертывание при пуше в main
 
 jobs:
   deploy:
-    runs-on: ubuntu-latest  # Используем последнюю версию Ubuntu для выполнения задач
+    runs-on: ubuntu-latest
     steps:
       # Шаг 1: Клонируем репозиторий
       - name: Checkout code
         uses: actions/checkout@v4
 
-      # Шаг 2: Устанавливаем зависимости (пример для Node.js проекта)
-      - name: Set up Node.js
-        uses: actions/setup-node@v3
+      # Шаг 2: Устанавливаем PHP
+      - name: Setup PHP
+        uses: shivammathur/setup-php@v2
         with:
-          node-version: '18'
+          php-version: '8.3'  # Версия PHP, используемая в проекте
+          extensions: mbstring, xml, bcmath, ctype, fileinfo, json, tokenizer, curl, mysql
 
-      - name: Install dependencies
-        run: npm install
+      # Шаг 3: Устанавливаем Composer и зависимости
+      - name: Install Composer dependencies
+        run: |
+          composer install --no-dev --optimize-autoloader
 
-      # Шаг 3: Собираем проект (опционально)
-      - name: Build project
-        run: npm run build
+      # Шаг 4: Кэшируем зависимости (опционально)
+      - name: Cache Composer dependencies
+        uses: actions/cache@v3
+        with:
+          path: vendor
+          key: ${{ runner.os }}-composer-${{ hashFiles('**/composer.lock') }}
+          restore-keys: ${{ runner.os }}-composer-
 
-      # Шаг 4: Разворачиваем на сервер через SSH
+      # Шаг 5: Разворачиваем на сервер через SSH
       - name: Deploy to Server
         uses: appleboy/ssh-action@master
         with:
-          host: ${{ secrets.SERVER_IP }}  # IP вашего сервера
-          username: deployer              # Пользователь для SSH
-          key: ${{ secrets.SSH_PRIVATE_KEY }}  # Приватный SSH-ключ
-          port: 22                        # Порт SSH (по умолчанию 22)
+          host: ${{ secrets.SERVER_IP }}
+          username: deployer
+          key: ${{ secrets.SSH_PRIVATE_KEY }}
+          port: 22
           script: |
             cd /var/www/myapp
-            git pull origin main  # Предполагается, что репозиторий уже склонирован на сервере
-            npm install           # Устанавливаем зависимости на сервере
-            npm run build         # Собираем проект на сервере
-            sudo systemctl restart myapp  # Перезапускаем сервис (настройте его отдельно)
+            git pull origin main
+            composer install --no-dev --optimize-autoloader
+            php artisan migrate --force  # Миграции без подтверждения
+            php artisan config:cache
+            php artisan route:cache
+            php artisan view:cache
+            sudo chown -R www-data:www-data /var/www/myapp/storage /var/www/myapp/bootstrap/cache
+            sudo systemctl restart nginx
